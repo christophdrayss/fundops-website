@@ -1,75 +1,26 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FundOps</title>
-    <!-- Montserrat font (optional) -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        font-family: "Montserrat", sans-serif;
-        background-color: #f2f2f2; /* just a base color behind the canvas */
-        position: relative;        /* so we can absolutely-position the canvas */
-        overflow: hidden;          /* prevents scrollbars during animation */
-      }
-      /* The full-screen canvas behind everything */
-      #dotsCanvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: -1; /* behind other content */
-      }
-      /* Centered main content (optional) */
-      main {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        text-align: left;
-        line-height: 1;
-      }
-      p {
-        margin: 0 0 1rem;
-      }
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
+    <meta name="description" content="Fund Operations plugged into your system." />
+    <meta name="author" content="FundOps" />
+    <link rel="icon" href="/og-image.svg" type="image/svg+xml" />
 
-      footer {
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        font-size: 12px;
-        color: #666;
-        line-height: 0.2;
-      }
+    <meta property="og:title" content="FundOps" />
+    <meta property="og:description" content="Fund Operations plugged into your system." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.svg" />
 
-    </style>
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@Lovable" />
+    <meta name="twitter:image" content="/og-image.svg" />
+    <script type="module" crossorigin src="/assets/index-CkQCaAyB.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Bbgd2XPW.css">
   </head>
+
   <body>
-    <!-- Our background animation canvas -->
-    <canvas id="dotsCanvas"></canvas>
-
-    <main>
-      <div>
-        <p>fund operations service</p>
-        <p><a href="mailto:contact@fundops.de">contact@fundops.de</a></p>
-      </div>
-    </main>
-    <footer>
-      <p>Seneca Evolution UG, Rheinstrasse 24, 64653 Lorsch</p>
-      <p>Managing Director: Christoph Drayss</p>
-    </footer>
-    </body>
+    <div id="root"></div>
+  </body>
 </html>
-
