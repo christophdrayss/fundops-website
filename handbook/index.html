@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Handbook — How holdings are modelled</title>
+<meta name="description" content="How fundops turns records into holdings — what every table and number means, and the methodology behind each figure." />
+<style>
+  :root {
+    --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb; --gray-300:#d1d5db;
+    --gray-400:#9ca3af; --gray-500:#6b7280; --gray-600:#4b5563; --gray-700:#374151;
+    --gray-800:#1f2937; --gray-900:#111827;
+    --blue-50:#eff6ff; --blue-200:#bfdbfe; --blue-700:#1d4ed8;
+    --emerald-50:#ecfdf5; --emerald-200:#a7f3d0; --emerald-600:#059669; --emerald-700:#047857;
+    --amber-50:#fffbeb; --amber-200:#fde68a; --amber-700:#b45309; --amber-800:#92400e;
+    --rose-50:#fff1f2; --rose-200:#fecdd3; --rose-700:#be123c;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--gray-100);
+    color: var(--gray-900);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  .wrap { max-width: 56rem; margin: 0 auto; padding: 2rem 1.5rem; }
+  .stack > * + * { margin-top: 1.5rem; }
+
+  /* Header */
+  .page-title {
+    font-size: 1.5rem; font-weight: 600; color: var(--gray-900);
+    margin: 0 0 .25rem; display: flex; align-items: center; gap: .5rem;
+  }
+  .page-sub { color: var(--gray-600); font-size: .875rem; margin: 0; }
+
+  /* Section card */
+  .section {
+    background:#fff; border:1px solid var(--gray-200); border-radius:.75rem;
+    box-shadow: 0 1px 2px 0 rgba(0,0,0,.05); padding:1.5rem;
+  }
+  .section-head { display:flex; align-items:flex-start; gap:.75rem; margin-bottom:1rem; }
+  .section-icon {
+    flex-shrink:0; width:2.25rem; height:2.25rem; border-radius:.5rem;
+    background:var(--blue-50); color:var(--blue-700);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .section-icon svg { width:1.25rem; height:1.25rem; }
+  .section-title { font-size:1rem; font-weight:600; color:var(--gray-900); margin:0; }
+  .section-blurb { font-size:.875rem; color:var(--gray-500); margin:.125rem 0 0; }
+
+  h3.card-title { font-size:.875rem; font-weight:600; color:var(--gray-800); margin:0 0 .75rem; }
+
+  p { margin:0; }
+  .lead { font-size:.875rem; color:var(--gray-600); line-height:1.7; margin-bottom:1rem; }
+  strong { font-weight:600; }
+
+  /* Pills */
+  .pill {
+    display:inline-flex; align-items:center; padding:.0625rem .5rem; border-radius:9999px;
+    font-size:11px; font-weight:500; border:1px solid; white-space:nowrap;
+  }
+  .pill-blue { background:var(--blue-50); color:var(--blue-700); border-color:var(--blue-200); }
+  .pill-emerald { background:var(--emerald-50); color:var(--emerald-700); border-color:var(--emerald-200); }
+  .pill-amber { background:var(--amber-50); color:var(--amber-700); border-color:var(--amber-200); }
+  .pill-gray { background:var(--gray-50); color:var(--gray-600); border-color:var(--gray-200); }
+  .pill-rose { background:var(--rose-50); color:var(--rose-700); border-color:var(--rose-200); }
+
+  /* Grids */
+  .grid { display:grid; gap:.75rem; }
+  @media (min-width:640px){
+    .sm-2 { grid-template-columns:repeat(2,1fr); }
+    .sm-3 { grid-template-columns:repeat(3,1fr); }
+  }
+  @media (min-width:1024px){
+    .lg-4 { grid-template-columns:repeat(4,1fr); }
+  }
+
+  /* Resource cards */
+  .res-card { border-radius:.5rem; border:1px solid; padding:1rem; }
+  .res-blue { border-color:var(--blue-200); background:rgba(239,246,255,.4); }
+  .res-emerald { border-color:var(--emerald-200); background:rgba(236,253,245,.4); }
+  .res-gray { border-color:var(--gray-200); background:rgba(249,250,251,.6); }
+  .res-amber { border-color:var(--amber-200); background:rgba(255,251,235,.4); }
+  .res-what { font-size:.875rem; color:var(--gray-700); line-height:1.4; margin-top:.375rem; }
+  .res-drives { font-size:11px; color:var(--gray-500); margin-top:.5rem; line-height:1.4; }
+  .res-drives b { font-weight:500; color:var(--gray-600); }
+
+  /* Attribute boxes (one per resource) */
+  .erm { border-radius:.5rem; border:1px solid; overflow:hidden; background:#fff; }
+  .erm-amber { border-color:var(--amber-200); }
+  .erm-blue { border-color:var(--blue-200); }
+  .erm-emerald { border-color:var(--emerald-200); }
+  .erm-gray { border-color:var(--gray-200); }
+  .erm-head { padding:.375rem .625rem; border-bottom:1px solid; }
+  .erm-amber .erm-head { background:rgba(255,251,235,.6); border-color:var(--amber-200); }
+  .erm-blue .erm-head { background:rgba(239,246,255,.55); border-color:var(--blue-200); }
+  .erm-emerald .erm-head { background:rgba(236,253,245,.55); border-color:var(--emerald-200); }
+  .erm-gray .erm-head { background:rgba(249,250,251,.7); border-color:var(--gray-200); }
+  .erm-name { font-size:.8125rem; font-weight:600; color:var(--gray-800); }
+  .erm-field { padding:.1875rem .625rem; border-top:1px solid var(--gray-100); line-height:1.3; }
+  .erm-field:first-child { border-top:0; }
+  .erm-fname { font-size:12px; color:var(--gray-700); }
+  .erm-hint { font-size:10px; color:var(--gray-400); margin-left:.3125rem; }
+  .erm-more { padding:.125rem .625rem .3125rem; color:var(--gray-300); font-size:13px; letter-spacing:.1em; }
+
+  /* Callout boxes */
+  .note { border-radius:.5rem; border:1px solid; padding:.75rem; font-size:13px; line-height:1.4; }
+  .note-lg { font-size:.875rem; margin-top:1rem; }
+  .note-blue { border-color:var(--blue-200); background:rgba(239,246,255,.5); color:var(--gray-700); }
+  .note-amber { border-color:var(--amber-200); background:rgba(255,251,235,.5); color:var(--gray-700); }
+  .note-gray { border-color:var(--gray-200); background:rgba(249,250,251,.6); color:var(--gray-600); }
+  .small-note { font-size:13px; color:var(--gray-500); margin-top:.75rem; line-height:1.4; }
+  .tiny-note { font-size:12px; color:var(--gray-500); margin-top:1rem; line-height:1.4; }
+
+  .micro-head {
+    font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--gray-400); margin:0 0 .5rem;
+  }
+  .micro-head.mt { margin-top:1.25rem; }
+  .micro-head-50 { color:var(--gray-500); }
+
+  /* Two-leg diagram */
+  .legs { display:flex; flex-direction:column; gap:.75rem; align-items:stretch; }
+  @media (min-width:640px){ .legs { flex-direction:row; } }
+  .leg { flex:1; border-radius:.5rem; border:1px solid; padding:1rem; }
+  .leg-rose { border-color:var(--rose-200); background:rgba(255,241,242,.4); }
+  .leg-emerald { border-color:var(--emerald-200); background:rgba(236,253,245,.4); }
+  .leg-side { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-500); margin-bottom:.5rem; }
+  .leg dl { margin:0; }
+  .leg-row { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; }
+  .leg-row + .leg-row { margin-top:.375rem; }
+  .leg-k { font-size:11px; color:var(--gray-400); }
+  .leg-v { font-size:.875rem; color:var(--gray-800); text-align:right; }
+  .leg-note { font-size:11px; color:var(--gray-500); margin-top:.625rem; line-height:1.35; }
+  .arrow { display:none; align-items:center; color:var(--gray-300); }
+  @media (min-width:640px){ .arrow { display:flex; } }
+  .arrow svg { width:1.5rem; height:1.5rem; }
+
+  .example-line { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; margin-top:.75rem; font-size:.875rem; color:var(--gray-600); }
+
+  /* Formula chip */
+  .formula {
+    display:inline-flex; align-items:center; border-radius:.375rem;
+    background:var(--gray-900); color:var(--gray-50);
+    font-size:.75rem; padding:.375rem .75rem; margin-top:.5rem;
+  }
+
+  /* KPI header strip */
+  .kpi {
+    border-radius:.5rem; border:1px solid var(--gray-200); background:#fff;
+    padding:.75rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  }
+  .kpi-name { font-size:.875rem; font-weight:600; color:var(--gray-900); }
+  .kpi-set { display:flex; align-items:center; gap:1.5rem; }
+  .kpi-cell { text-align:right; }
+  .kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-400); }
+  .kpi-value { font-size:.875rem; font-weight:500; color:var(--gray-700); }
+
+  /* Meaning grid */
+  .meaning { border-radius:.375rem; border:1px solid var(--gray-200); overflow:hidden; }
+  .meaning-row { display:grid; gap:.125rem .5rem; padding:.5rem .75rem; border-top:1px solid var(--gray-100); }
+  .meaning-row:first-child { border-top:0; }
+  @media (min-width:640px){ .meaning-row { grid-template-columns:160px 1fr; column-gap:1rem; } }
+  .meaning-term { font-size:.875rem; font-weight:500; color:var(--gray-800); }
+  .meaning-def { font-size:13px; color:var(--gray-600); line-height:1.4; }
+
+  /* Instruments table */
+  .itable { border-radius:.375rem; border:1px solid var(--gray-200); overflow:hidden; }
+  .itable-cap {
+    padding:.375rem .75rem; background:var(--gray-50); border-bottom:1px solid var(--gray-200);
+    font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-400);
+  }
+  table { width:100%; border-collapse:collapse; font-size:.75rem; }
+  thead { background:var(--gray-50); }
+  th {
+    padding:.5rem .75rem; font-size:10px; font-weight:500; color:var(--gray-500);
+    text-transform:uppercase; letter-spacing:.05em;
+  }
+  th.l { text-align:left; } th.r { text-align:right; }
+  td { padding:.5rem .75rem; }
+  td.l { text-align:left; color:var(--gray-800); }
+  td.r { text-align:right; white-space:nowrap; }
+  tbody tr + tr td { border-top:1px solid var(--gray-100); }
+  .cell-cost { color:var(--gray-600); }
+  .cell-count { color:var(--gray-700); }
+  tfoot tr { border-top:1px solid var(--gray-200); background:var(--gray-50); }
+  tfoot td { font-weight:500; color:var(--gray-800); }
+  .foot-label { font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-500); }
+  .itable-note {
+    padding:.375rem .75rem; border-top:1px solid var(--gray-100);
+    background:rgba(255,251,235,.4); font-size:10px; color:var(--amber-700);
+  }
+  .dash { color:var(--gray-300); }
+  .sub-val { display:block; font-size:10px; color:var(--emerald-600); }
+  .sub-atcost { font-size:10px; color:var(--gray-400); }
+  .sub-eur { display:block; font-size:10px; color:var(--gray-400); }
+
+  /* Definition cards row */
+  .defcard { border-radius:.5rem; border:1px solid var(--gray-200); padding:.75rem; }
+  .defcard p { font-size:.875rem; color:var(--gray-600); line-height:1.4; }
+
+  /* Methodology include/exclude */
+  .box { border-radius:.5rem; border:1px solid; padding:.75rem; }
+  .box-inc { border-color:var(--emerald-200); background:rgba(236,253,245,.3); }
+  .box-exc { border-color:var(--gray-200); }
+  .box p, .box li { font-size:13px; color:var(--gray-600); line-height:1.4; }
+  .box ul { margin:0; padding-left:0; list-style:none; }
+  .box li + li { margin-top:.25rem; }
+  .box .mb { margin-bottom:.5rem; }
+
+  .value-row { display:flex; align-items:flex-start; gap:.5rem; }
+  .value-row p { font-size:.875rem; color:var(--gray-600); line-height:1.4; }
+
+  /* Worked examples */
+  .examples { display:flex; flex-direction:column; gap:.75rem; }
+  .example {
+    border-radius:.5rem; border:1px solid var(--gray-200); padding:1rem;
+  }
+  .example-grid { display:grid; gap:.75rem; align-items:center; }
+  @media (min-width:640px){ .example-grid { grid-template-columns:1fr auto 1fr; } }
+  .ex-col-label { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--gray-400); margin-bottom:.25rem; }
+  .txn-line { font-size:11px; color:var(--gray-600); line-height:1.6; }
+  .ex-arrow { display:none; align-items:center; justify-content:center; color:var(--gray-300); }
+  @media (min-width:640px){ .ex-arrow { display:flex; } }
+  .ex-arrow svg { width:1.5rem; height:1.5rem; }
+  .result {
+    border-radius:.375rem; border:1px solid var(--gray-200); background:rgba(249,250,251,.6);
+    padding:.5rem .75rem;
+  }
+  .result-top { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; }
+  .result-inst { font-size:.875rem; font-weight:500; color:var(--gray-800); }
+  .result-val { font-size:.875rem; color:var(--gray-800); }
+  .result-sub { display:flex; align-items:baseline; justify-content:space-between; gap:.75rem; font-size:11px; color:var(--gray-500); margin-top:.125rem; }
+  .result-sub .lbl { color:var(--gray-400); }
+  .example-note { font-size:11px; color:var(--gray-500); margin-top:.75rem; line-height:1.35; }
+
+  /* Quick reference legend */
+  .legend { display:flex; flex-direction:column; gap:.75rem; font-size:.875rem; }
+  .legend-row { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+  .legend-lead { color:var(--gray-500); margin-right:.25rem; }
+  .legend-hint { color:var(--gray-400); font-size:.75rem; }
+
+  em { font-style:italic; }
+  .footer { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--gray-200); font-size:.75rem; color:var(--gray-400); text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap stack">
+
+  <!-- Header -->
+  <div>
+    <h1 class="page-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.5" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>
+      Handbook
+    </h1>
+  </div>
+
+  <!-- 0 — Mental model -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 0 1-1.125-1.125v-3.75ZM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-8.25ZM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-2.25Z"/></svg></div>
+      <div>
+        <h2 class="section-title">The mental model — four resources</h2>
+        <p class="section-blurb">Entities are the catalog of nouns; the other three record what's true about them.</p>
+      </div>
+    </div>
+    <div class="grid sm-2 lg-4">
+      <div class="res-card res-amber">
+        <span class="pill pill-amber">Entities</span>
+        <p class="res-what">The catalog of parties/assets — companies, funds, holdings, individuals, accounts. The nouns every other record points to.</p>
+        <p class="res-drives"><b>Drives:</b> Identity, type &amp; attributes (currency, domicile, legal form); how holdings group.</p>
+      </div>
+      <div class="res-card res-blue">
+        <span class="pill pill-blue">Transactions</span>
+        <p class="res-what">A real flow from one entity to another on a date — money and/or an instrument changing hands.</p>
+        <p class="res-drives"><b>Drives:</b> Cost basis, unit counts, cash in/out, commitments.</p>
+      </div>
+      <div class="res-card res-emerald">
+        <span class="pill pill-emerald">Measurements</span>
+        <p class="res-what">A spot, as-of fact about an entity or instrument — most importantly a fair-value mark.</p>
+        <p class="res-drives"><b>Drives:</b> Current value, per-unit price, company KPIs.</p>
+      </div>
+      <div class="res-card res-gray">
+        <span class="pill pill-gray">Events</span>
+        <p class="res-what">A loose, informative timeline entry. Narrative only.</p>
+        <p class="res-drives"><b>Drives:</b> Nothing computed — display context.</p>
+      </div>
+    </div>
+
+    <div class="micro-head mt">What each one holds</div>
+    <div class="grid sm-2 lg-4">
+
+      <!-- Entities -->
+      <div class="erm erm-amber">
+        <div class="erm-head"><span class="erm-name">Entity</span></div>
+        <div class="erm-field"><span class="erm-fname">Name</span></div>
+        <div class="erm-field"><span class="erm-fname">Kind</span><span class="erm-hint">company, fund, person…</span></div>
+        <div class="erm-field"><span class="erm-fname">Currency</span></div>
+        <div class="erm-field"><span class="erm-fname">Domicile &amp; legal form</span></div>
+        <div class="erm-more">…</div>
+      </div>
+
+      <!-- Transactions -->
+      <div class="erm erm-blue">
+        <div class="erm-head"><span class="erm-name">Transaction</span></div>
+        <div class="erm-field"><span class="erm-fname">Date</span></div>
+        <div class="erm-field"><span class="erm-fname">Kind</span><span class="erm-hint">investment, exit…</span></div>
+        <div class="erm-field"><span class="erm-fname">Holder &amp; counterparty</span></div>
+        <div class="erm-field"><span class="erm-fname">Given</span><span class="erm-hint">what &amp; how much</span></div>
+        <div class="erm-field"><span class="erm-fname">Received</span><span class="erm-hint">what &amp; how much</span></div>
+        <div class="erm-more">…</div>
+      </div>
+
+      <!-- Measurements -->
+      <div class="erm erm-emerald">
+        <div class="erm-head"><span class="erm-name">Measurement</span></div>
+        <div class="erm-field"><span class="erm-fname">About</span><span class="erm-hint">entity &amp; instrument</span></div>
+        <div class="erm-field"><span class="erm-fname">What's measured</span><span class="erm-hint">fair value, revenue…</span></div>
+        <div class="erm-field"><span class="erm-fname">Value</span></div>
+        <div class="erm-field"><span class="erm-fname">As of</span><span class="erm-hint">period / date</span></div>
+        <div class="erm-more">…</div>
+      </div>
+
+      <!-- Events -->
+      <div class="erm erm-gray">
+        <div class="erm-head"><span class="erm-name">Event</span></div>
+        <div class="erm-field"><span class="erm-fname">About</span></div>
+        <div class="erm-field"><span class="erm-fname">Date</span></div>
+        <div class="erm-field"><span class="erm-fname">Kind</span></div>
+        <div class="erm-more">…</div>
+      </div>
+
+    </div>
+
+    <p class="small-note">
+      Every transaction, measurement and event references an entity by its slug
+      (<span class="mono" style="font-size:.75rem">subject_id</span> / <span class="mono" style="font-size:.75rem">object_id</span>).
+      The entity supplies the name, type and currency you see; the other three supply what happened and what it's worth.
+    </p>
+    <div class="note note-blue note-lg">
+      <strong style="color:var(--gray-800)">The golden rule.</strong>
+      Entities are the catalog everything references; computed numbers come from <strong>transactions</strong> and
+      <strong>measurements</strong>; event information are never summed up. A holding's <strong>cost</strong> is a story about
+      <em>flows</em>/transactions (what was paid); its <strong>value</strong> is a story about <em>marks</em>/measurements (what it's worth now).
+      They're computed independently and shown side by side.
+    </div>
+  </section>
+
+  <!-- 1 — Two-leg transaction -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 0 1-2.031.352 5.988 5.988 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971Zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 0 1-2.031.352 5.989 5.989 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971Z"/></svg></div>
+      <div>
+        <h2 class="section-title">The transaction — a flow with two legs</h2>
+        <p class="section-blurb">A transaction is an exchange — one leg for what's given, one for what's received.</p>
+      </div>
+    </div>
+    <p class="lead">
+      A transaction is a dated exchange between two parties — the <strong>subject</strong> (whose books we're on, the
+      holder) and the <strong>object</strong> (the counterparty / asset) — tagged with a <strong>type</strong> such as
+      <span class="pill pill-gray">investment</span>, <span class="pill pill-gray">distribution</span>,
+      <span class="pill pill-gray">exit</span> or <span class="pill pill-gray">write_off</span>. It's recorded as two
+      legs: the <strong>outflow</strong> (what the subject gives) and the <strong>inflow</strong> (what it gets back).
+      Each leg carries its own type and amount.
+    </p>
+    <div class="legs">
+      <div class="leg leg-rose">
+        <div class="leg-side">Outflow · given</div>
+        <dl>
+          <div class="leg-row"><dt class="leg-k mono">outflow_type</dt><dd class="leg-v tnum">EUR</dd></div>
+          <div class="leg-row"><dt class="leg-k mono">outflow_amount</dt><dd class="leg-v tnum">+75,000</dd></div>
+          <div class="leg-row"><dt class="leg-k mono">reporting (€)</dt><dd class="leg-v tnum">75,000</dd></div>
+        </dl>
+        <p class="leg-note">What the subject gives — usually cash. Signed: + = pays out, − = receives. Reporting is the EUR equivalent.</p>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+      <div class="leg leg-emerald">
+        <div class="leg-side">Inflow · received</div>
+        <dl>
+          <div class="leg-row"><dt class="leg-k mono">inflow_type</dt><dd class="leg-v tnum">series_a</dd></div>
+          <div class="leg-row"><dt class="leg-k mono">inflow_amount</dt><dd class="leg-v tnum">3,000</dd></div>
+        </dl>
+        <p class="leg-note">What the subject receives — usually an instrument, with the amount as its unit / share count.</p>
+      </div>
+    </div>
+    <div class="note note-gray note-lg">
+      <strong style="color:var(--gray-700)">Outflow is usually cash and inflow usually an instrument — but not always.</strong>
+      In a currency swap both legs are cash: you give one currency on the outflow and receive another
+      (<span class="mono" style="font-size:.75rem">inflow_type = cash</span>) on the inflow. The legs are simply
+      <em>given</em> vs <em>received</em>, not fixed to money vs instrument.
+    </div>
+    <div class="example-line">
+      <span class="pill pill-blue">Example</span>
+      <span>Crestline Holdings pays <strong>€75,000</strong> and receives <strong>3,000 Series A</strong> shares in Helios Energy — booked as <span class="mono" style="font-size:.75rem">subject → object</span>, type <span class="mono" style="font-size:.75rem">investment</span>.</span>
+    </div>
+    <p class="tiny-note">
+      <strong style="color:var(--gray-600)">Sign convention:</strong> direction lives in the sign of
+      <span class="mono">outflow_amount</span> — a distribution is cash coming back, a <strong>negative outflow</strong>,
+      never moved to the inflow leg. <strong style="color:var(--gray-600)">EUR rule:</strong> a leg's EUR value is its
+      reporting amount when present, else the native amount only if the leg is already EUR, else <strong>unknown</strong>
+      — shown as a dash, never coerced to 0.
+    </p>
+  </section>
+
+  <!-- 2 — Measurements -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg></div>
+      <div>
+        <h2 class="section-title">The measurement — a spot fact</h2>
+        <p class="section-blurb">A single as-of observation, stored apart from flows. Valuations and KPIs live here.</p>
+      </div>
+    </div>
+    <p class="lead">
+      One row shape covers two cases, told apart by <span class="mono" style="font-size:.75rem">instrument_type</span>:
+      when it's <strong>set</strong> the row is an <strong>instrument valuation</strong> (a fair-value mark for one share
+      class); when it's <strong>null</strong> the row is a <strong>company KPI</strong> (revenue, EBITDA, headcount, …).
+    </p>
+    <div class="res-card res-emerald" style="padding:1rem">
+      <div class="micro-head micro-head-50" style="margin-bottom:.5rem">How a value attaches to a holding</div>
+      <div style="font-size:13px;color:var(--gray-700);line-height:1.6">A valuation finds its holding by matching the <strong>same instrument on both sides</strong>:</div>
+      <div><span class="formula mono">transaction (object_id, inflow_type) == measurement (subject_id, instrument_type)</span></div>
+    </div>
+    <div class="note note-amber" style="margin-top:.75rem">
+      <strong style="color:var(--amber-800)">Gotcha.</strong> A mark whose
+      <span class="mono" style="font-size:.75rem">instrument_type</span> doesn't match any transaction's
+      <span class="mono" style="font-size:.75rem">inflow_type</span> on that issuer silently fails to attach — the
+      position then shows <span class="pill pill-gray">at cost</span>. When a valuation isn't showing up, check this match first.
+    </div>
+  </section>
+
+  <!-- 3 — Reading the asset detail -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m17.25 1.125c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m0 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m0 0h7.5m0-9v9m0-9c.621 0 1.125.504 1.125 1.125M10.875 18.375v-1.5c0-.621.504-1.125 1.125-1.125m-1.125 2.625h7.5m-7.5 0c-.621 0-1.125-.504-1.125-1.125M12 15.75c.621 0 1.125.504 1.125 1.125m0 0v1.5c0 .621-.504 1.125-1.125 1.125m1.125-2.625h7.5m-7.5 0c-.621 0-1.125-.504-1.125-1.125m9.75-9v9.75c0 .621-.504 1.125-1.125 1.125"/></svg></div>
+      <div>
+        <h2 class="section-title">Reading the asset detail</h2>
+        <p class="section-blurb">An asset page has three blocks: the header KPIs, the instruments table, and the event log.</p>
+      </div>
+    </div>
+
+    <div class="micro-head">Header KPIs</div>
+    <div class="kpi">
+      <span class="kpi-name">Helios Energy</span>
+      <div class="kpi-set">
+        <div class="kpi-cell"><div class="kpi-label">Total Investment</div><div class="kpi-value tnum">€295,000</div></div>
+        <div class="kpi-cell"><div class="kpi-label">Fair Value</div><div class="kpi-value tnum">€587,500</div></div>
+      </div>
+    </div>
+    <div class="meaning" style="margin-top:.75rem">
+      <div class="meaning-row">
+        <div class="meaning-term"><span class="pill pill-blue">Total Investment</span></div>
+        <div class="meaning-def">Capital actually deployed — every <span class="mono" style="font-size:.75rem">investment</span> flow into the asset. From transactions.</div>
+      </div>
+      <div class="meaning-row">
+        <div class="meaning-term"><span class="pill pill-emerald">Fair Value</span></div>
+        <div class="meaning-def">The latest valuation mark. A fully written-off position shows <strong>€0</strong>; an asset with <em>no</em> mark shows nothing at all — <strong>0</strong> and <strong>blank</strong> are different facts, never conflated. From measurements.</div>
+      </div>
+    </div>
+
+    <div class="micro-head mt">Instruments table</div>
+    <div class="itable">
+      <div class="itable-cap">Instruments in Helios Energy</div>
+      <table>
+        <thead><tr>
+          <th class="l">Instrument</th><th class="r">Count</th><th class="r">Cost</th><th class="r">Price / unit</th><th class="r">Value</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td class="l">Series Seed</td>
+            <td class="r tnum cell-count">6,000</td>
+            <td class="r tnum cell-cost">€120,000</td>
+            <td class="r tnum cell-cost">50 EUR <span class="sub-val">val Jun 30, 2026</span></td>
+            <td class="r tnum">€300,000</td>
+          </tr>
+          <tr>
+            <td class="l">Series A</td>
+            <td class="r tnum cell-count">5,000</td>
+            <td class="r tnum cell-cost">€125,000</td>
+            <td class="r tnum cell-cost">47 EUR <span class="sub-val">val Jun 30, 2026</span></td>
+            <td class="r tnum">€235,000</td>
+          </tr>
+          <tr>
+            <td class="l">Convertible</td>
+            <td class="r tnum cell-count"><span class="dash">—</span></td>
+            <td class="r tnum cell-cost">€50,000</td>
+            <td class="r"><span class="sub-atcost">at cost</span></td>
+            <td class="r tnum">€52,500</td>
+          </tr>
+        </tbody>
+        <tfoot><tr>
+          <td colspan="2" class="foot-label">Total</td>
+          <td class="r tnum">€295,000</td>
+          <td></td>
+          <td class="r tnum">€587,500</td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="grid sm-2 lg-4" style="margin-top:1rem">
+      <div class="defcard"><div class="micro-head" style="margin-bottom:.25rem">Count</div><p>Signed sum of the inflow leg across buys and exits. <span class="mono">—</span> = never recorded (not a zero).</p></div>
+      <div class="defcard"><div class="micro-head" style="margin-bottom:.25rem">Cost</div><p>The cost basis — what was paid in. Stays visible even after a valuation or a write-off.</p></div>
+      <div class="defcard"><div class="micro-head" style="margin-bottom:.25rem">Price / unit</div><p><span class="mono">value ÷ units</span> from the latest mark, or the cost per unit when unmarked.</p></div>
+      <div class="defcard"><div class="micro-head" style="margin-bottom:.25rem">Value</div><p>Count × price per unit. Unit-less instruments use the valuation total; unmarked = cost.</p></div>
+    </div>
+
+    <div class="micro-head mt">Event log</div>
+    <div class="note note-gray">
+      A chronological, <strong>informative</strong> list of what happened — each row expands to the transactions behind
+      it. The Type and Amount shown there are context only; <strong>no holdings figure is computed from the event
+      log</strong>. A valuation event reads as a note, but the value it implies comes from the <em>measurement</em>, not the event.
+    </div>
+  </section>
+
+  <!-- 4 — Cost basis -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg></div>
+      <div>
+        <h2 class="section-title">Methodology — Cost basis</h2>
+        <p class="section-blurb">The signed sum of the money legs of the flows that build a position.</p>
+      </div>
+    </div>
+    <p class="lead" style="margin-bottom:.75rem">
+      Only <strong>real position flows</strong> count toward cost — buys add, cash-back nets down. Marks, promises and forecasts don't.
+    </p>
+    <div class="grid sm-2">
+      <div class="box box-inc">
+        <div class="mb"><span class="pill pill-emerald">Included</span></div>
+        <p>
+          <span class="mono" style="font-size:.75rem">investment</span>,
+          <span class="mono" style="font-size:.75rem">capital_call</span>,
+          <span class="mono" style="font-size:.75rem">distribution</span>,
+          <span class="mono" style="font-size:.75rem">dividend</span>,
+          <span class="mono" style="font-size:.75rem">interest</span>,
+          <span class="mono" style="font-size:.75rem">exit</span>,
+          <span class="mono" style="font-size:.75rem">transfer</span> — each with its natural sign.
+        </p>
+      </div>
+      <div class="box box-exc">
+        <div class="mb"><span class="pill pill-gray">Excluded</span></div>
+        <ul>
+          <li><span class="mono" style="font-size:.75rem">valuation</span> — a mark, not a flow.</li>
+          <li><span class="mono" style="font-size:.75rem">commitment</span> — promised, not paid in.</li>
+          <li><span class="mono" style="font-size:.75rem">write_off</span> — keeps cost; value drops via a mark.</li>
+          <li><span class="mono" style="font-size:.75rem">status = planned</span> — a forecast.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note note-blue" style="margin-top:.75rem">
+      Cost basis is <strong>historical and sticky</strong>: a valuation never changes it, and a write-off never erases
+      it. You always see what was paid alongside what it's worth.
+    </div>
+  </section>
+
+  <!-- 5 — Value -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 1 0 0 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></div>
+      <div>
+        <h2 class="section-title">Methodology — Value</h2>
+        <p class="section-blurb">Measurement-led: the latest mark, or the cost basis when there isn't one.</p>
+      </div>
+    </div>
+    <div class="grid sm-2">
+      <div class="defcard value-row">
+        <span class="pill pill-emerald">latest mark</span>
+        <p>The most recent <span class="mono" style="font-size:.75rem">fair_value</span> for the position's <span class="mono" style="font-size:.75rem">(issuer, instrument)</span> pair → <span class="mono" style="font-size:.75rem">count × (value ÷ units)</span>, tagged <span style="color:var(--emerald-600)">val · date</span>. Unit-less instruments use the total.</p>
+      </div>
+      <div class="defcard value-row">
+        <span class="pill pill-gray">at cost</span>
+        <p>No measurement yet? The position is shown at its cost basis and labelled <em>at cost</em>.</p>
+      </div>
+    </div>
+    <div class="note note-amber" style="margin-top:.75rem">
+      A genuine <strong>0</strong> mark is a real value, not "missing" — a written-off position shows <strong>€0</strong>, both in the instruments table and the header Fair Value.
+    </div>
+  </section>
+
+  <!-- 6 — Transaction types -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></svg></div>
+      <div>
+        <h2 class="section-title">Transaction types — effect on a holding</h2>
+        <p class="section-blurb">The type tells the engine what the flow does. The instrument is a free label.</p>
+      </div>
+    </div>
+    <div class="meaning">
+      <div class="meaning-row"><div class="meaning-term mono" style="font-size:.75rem">investment</div><div class="meaning-def">Cash out, instrument in. Adds to <strong>cost</strong> and <strong>count</strong>; feeds Total Investment.</div></div>
+      <div class="meaning-row"><div class="meaning-term mono" style="font-size:.75rem">capital_call</div><div class="meaning-def">Cash drawn into a fund commitment. Adds to <strong>cost</strong> (paid-in).</div></div>
+      <div class="meaning-row"><div class="meaning-term mono" style="font-size:.75rem">commitment</div><div class="meaning-def">A signed promise, no cash yet. <strong>Not</strong> cost — tracked as committed capital.</div></div>
+      <div class="meaning-row"><div class="meaning-term"><span class="mono" style="font-size:.75rem">distribution</span> / <span class="mono" style="font-size:.75rem">dividend</span> / <span class="mono" style="font-size:.75rem">interest</span></div><div class="meaning-def">Cash back to the holder (negative outflow). Nets <strong>cost</strong> down.</div></div>
+      <div class="meaning-row"><div class="meaning-term mono" style="font-size:.75rem">exit</div><div class="meaning-def">Sale / liquidation; cash in, units out. Nets <strong>count</strong> and <strong>cost</strong> down.</div></div>
+      <div class="meaning-row"><div class="meaning-term mono" style="font-size:.75rem">transfer</div><div class="meaning-def">In-kind move of instruments, no cash. Moves <strong>count</strong> between vehicles.</div></div>
+      <div class="meaning-row"><div class="meaning-term mono" style="font-size:.75rem">write_off</div><div class="meaning-def">Impairment to zero. <strong>Keeps cost basis</strong>; value drops via a <span class="mono" style="font-size:.75rem">fair_value = 0</span> mark.</div></div>
+      <div class="meaning-row"><div class="meaning-term"><span class="mono" style="font-size:.75rem">fee</span> / <span class="mono" style="font-size:.75rem">invoice</span></div><div class="meaning-def">A service charge — a cash flow, not a position.</div></div>
+    </div>
+  </section>
+
+  <!-- 7 — Write-offs -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.511m-3.182 5.51-5.511-3.181"/></svg></div>
+      <div>
+        <h2 class="section-title">Write-offs &amp; impairments</h2>
+        <p class="section-blurb">The money was really spent, but the position is now worthless. That splits across two resources.</p>
+      </div>
+    </div>
+    <div class="grid sm-2">
+      <div class="box" style="border-color:var(--rose-200);background:rgba(255,241,242,.3)">
+        <div style="margin-bottom:.25rem"><span class="pill pill-rose">write_off transaction</span></div>
+        <p>Records that the impairment happened. <strong>Preserves the cost basis</strong> — neither adds to nor subtracts from cost.</p>
+      </div>
+      <div class="box box-inc">
+        <div style="margin-bottom:.25rem"><span class="pill pill-emerald">fair_value = 0 measurement</span></div>
+        <p>On the same instrument, drives the <strong>value</strong> to 0.</p>
+      </div>
+    </div>
+    <div style="margin-top:1rem">
+      <div class="itable">
+        <div class="itable-cap">Instruments in Solenne SAS</div>
+        <table>
+          <thead><tr><th class="l">Instrument</th><th class="r">Count</th><th class="r">Cost</th><th class="r">Price / unit</th><th class="r">Value</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="l">Equity</td>
+              <td class="r tnum cell-count"><span class="dash">—</span></td>
+              <td class="r tnum cell-cost">€50,190</td>
+              <td class="r"><span class="sub-val">val Dec 31, 2025</span></td>
+              <td class="r tnum">€0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="tiny-note" style="margin-top:.5rem">
+        Header: <strong>Total Investment €50,190 · Fair Value €0</strong> — table and header agree. The
+        <span class="mono" style="font-size:.75rem">write_off</span> alone would leave the position <em>at cost</em> (no
+        mark to read); the measurement is what carries the 0. The write-down amount belongs in the description, the
+        <strong>0</strong> in the measurement.
+      </p>
+    </div>
+  </section>
+
+  <!-- 8 — Currencies & missing data -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418"/></svg></div>
+      <div>
+        <h2 class="section-title">Currencies &amp; missing data</h2>
+        <p class="section-blurb">Native value comes first, EUR second; only figures that are actually recorded are shown.</p>
+      </div>
+    </div>
+    <div class="itable">
+      <div class="itable-cap">Instruments in Cobalt Devices Inc.</div>
+      <table>
+        <thead><tr><th class="l">Instrument</th><th class="r">Count</th><th class="r">Cost</th><th class="r">Price / unit</th><th class="r">Value</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="l">Equity</td>
+            <td class="r tnum cell-count"><span class="dash" title="No unit count recorded">—</span></td>
+            <td class="r tnum cell-cost">99,983 USD</td>
+            <td class="r"><span class="sub-val">val Dec 31, 2024</span></td>
+            <td class="r tnum">99,983 USD<span class="sub-eur">≈ €93,504</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="itable-note">Some positions have no unit count recorded.</div>
+    </div>
+    <div class="grid sm-3" style="margin-top:1rem">
+      <div class="defcard"><div style="margin-bottom:.25rem"><span class="pill pill-blue">USD 99,983</span></div><p>The native currency is shown first, with the EUR equivalent underneath when it's known.</p></div>
+      <div class="defcard"><div style="margin-bottom:.25rem"><span class="pill pill-gray">—</span></div><p>A dash means that figure isn't recorded — for example a position with no share count.</p></div>
+      <div class="defcard"><div style="margin-bottom:.25rem"><span class="pill pill-amber">native only</span></div><p>If there's no EUR equivalent, only the native amount is shown.</p></div>
+    </div>
+  </section>
+
+  <!-- 9 — Worked examples -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V13.5Zm0 2.25h.008v.008H8.25v-.008Zm0 2.25h.008v.008H8.25V18Zm2.498-6.75h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V13.5Zm0 2.25h.007v.008h-.007v-.008Zm0 2.25h.007v.008h-.007V18Zm2.504-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5Zm0 2.25h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V18Zm2.498-6.75h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V13.5ZM8.25 6h7.5a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-7.5a2.25 2.25 0 0 1-2.25-2.25v-9A2.25 2.25 0 0 1 8.25 6Zm.75-3.75h6a.75.75 0 0 1 .75.75v.75a.75.75 0 0 1-.75.75h-6a.75.75 0 0 1-.75-.75V3a.75.75 0 0 1 .75-.75Z"/></svg></div>
+      <div>
+        <h2 class="section-title">Worked examples</h2>
+        <p class="section-blurb">Under “All holdings” the same instrument is summed across every holder of the asset. Pick one holding to narrow it.</p>
+      </div>
+    </div>
+    <div class="examples">
+
+      <div class="example">
+        <h3 class="card-title">Two holders into one asset</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions</div>
+            <div class="txn-line">Crestline Holdings → Helios Energy · pays <strong>€75,000</strong> · gets <strong>3,000</strong> series_a</div>
+            <div class="txn-line">Brookmont Trust → Helios Energy · pays <strong>€25,000</strong> · gets <strong>1,000</strong> series_a</div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Series A</span><span class="result-val tnum">€100,000</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> 4,000</span><span>at cost</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">“All holdings” adds the two holders into one row (4,000 · €100,000). Selecting Crestline narrows it to 3,000 · €75,000; Brookmont to 1,000 · €25,000.</p>
+      </div>
+
+      <div class="example">
+        <h3 class="card-title">Swapping currencies — both legs are cash</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions</div>
+            <div class="txn-line">Crestline Holdings → USD account</div>
+            <div class="txn-line"><span class="mono">outflow</span> EUR <strong>9,200</strong> · <span class="mono">inflow</span> cash <strong>10,000</strong></div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Cash</span><span class="result-val tnum">€9,200</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> 10,000</span><span>€0.92 / unit · at cost</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">The leg received is cash, so the count is the 10,000 USD and the price per unit is the effective rate (€9,200 ÷ 10,000 = €0.92 per USD).</p>
+      </div>
+
+      <div class="example">
+        <h3 class="card-title">Buying then partly selling</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions</div>
+            <div class="txn-line">Buy · pays <strong>€100,000</strong> · gets <strong>4,000</strong> series_a</div>
+            <div class="txn-line">Exit · gets <strong>€30,000</strong> · returns <strong>−1,000</strong> series_a</div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Series A</span><span class="result-val tnum">€70,000</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> 3,000</span><span>at cost</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">Counts and cost are signed sums: the exit subtracts 1,000 units and €30,000, leaving 3,000 · €70,000.</p>
+      </div>
+
+      <div class="example">
+        <h3 class="card-title">Investing in a foreign currency</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions</div>
+            <div class="txn-line">Crestline Holdings → Northpoint Robotics</div>
+            <div class="txn-line">pays <strong>$50,000</strong> (≈ €46,000) · gets <strong>10,000</strong> common</div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Common</span><span class="result-val tnum">$50,000</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> 10,000</span><span>≈ €46,000 · at cost</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">The native amount leads ($50,000); the EUR equivalent comes from the leg's reporting amount.</p>
+      </div>
+
+      <div class="example">
+        <h3 class="card-title">A fund — commitment, calls, distribution</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions</div>
+            <div class="txn-line">Commitment · <strong>€500,000</strong> signed (not yet paid)</div>
+            <div class="txn-line">Calls · pays <strong>€150,000</strong> · fund_interest (no count)</div>
+            <div class="txn-line">Distribution · gets <strong>€30,000</strong> back (<strong>−€30,000</strong> outflow)</div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Fund Interest</span><span class="result-val tnum">€120,000</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> <span class="dash">—</span></span><span>at cost</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">The commitment is notional (not cost). Fund interests have no unit count, so the count is “—”. The distribution is a negative outflow that nets the cost down to €120,000.</p>
+      </div>
+
+      <div class="example">
+        <h3 class="card-title">A valuation sets the price</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions + measurement</div>
+            <div class="txn-line">Holding · <strong>4,000</strong> series_a · cost <strong>€100,000</strong></div>
+            <div class="txn-line">Measurement · fair_value series_a · <strong>€30</strong> / share</div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Series A</span><span class="result-val tnum">€120,000</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> 4,000</span><span>val · €30 / share</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">With a mark, value = count × price per unit (4,000 × €30 = €120,000) instead of the €100,000 cost.</p>
+      </div>
+
+      <div class="example">
+        <h3 class="card-title">A write-off</h3>
+        <div class="example-grid">
+          <div>
+            <div class="ex-col-label">Transactions + measurement</div>
+            <div class="txn-line">Holding · equity · cost <strong>€50,190</strong></div>
+            <div class="txn-line">Transaction · <strong>write_off</strong> · equity (cost kept)</div>
+            <div class="txn-line">Measurement · fair_value equity · <strong>0</strong></div>
+          </div>
+          <div class="ex-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg></div>
+          <div>
+            <div class="ex-col-label">Holding shown</div>
+            <div class="result">
+              <div class="result-top"><span class="result-inst">Equity</span><span class="result-val tnum">€0</span></div>
+              <div class="result-sub"><span><span class="lbl">count</span> <span class="dash">—</span></span><span>val · cost €50,190 kept</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="example-note">The write-off keeps the cost basis; the measurement carries the 0. Cost €50,190, value €0.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 10 — Quick reference -->
+  <section class="section">
+    <div class="section-head">
+      <div class="section-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg></div>
+      <div><h2 class="section-title">Quick reference</h2></div>
+    </div>
+    <div class="legend">
+      <div class="legend-row">
+        <span class="legend-lead">Resources:</span>
+        <span class="pill pill-blue">transactions = flows</span>
+        <span class="pill pill-emerald">measurements = marks</span>
+        <span class="pill pill-gray">events = narrative</span>
+        <span class="legend-hint">events are never summed</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-lead">Instrument examples:</span>
+        <span class="pill pill-blue">Series Seed</span>
+        <span class="pill pill-blue">Series A</span>
+        <span class="pill pill-blue">SAFE</span>
+        <span class="pill pill-blue">Convertible</span>
+        <span class="pill pill-blue">Common</span>
+        <span class="pill pill-blue">Fund Interest</span>
+        <span class="pill pill-blue">Crypto</span>
+        <span class="legend-hint">… the instrument is a free label, so any class can appear</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-lead">Value tags:</span>
+        <span class="pill pill-emerald">val · date</span>
+        <span class="legend-hint">latest valuation mark</span>
+        <span class="pill pill-gray">at cost</span>
+        <span class="legend-hint">no mark, shown at cost basis</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-lead">Zero vs dash:</span>
+        <span class="pill pill-emerald">€0</span>
+        <span class="legend-hint">a real recorded zero (e.g. a write-off)</span>
+        <span class="pill pill-gray">—</span>
+        <span class="legend-hint">not recorded — never the same thing</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-lead">Money-leg sign:</span>
+        <span class="pill pill-rose">+ pays out</span>
+        <span class="pill pill-emerald">− receives</span>
+        <span class="legend-hint">a distribution is a negative outflow, never an inflow</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">Handbook · How fundops turns records into holdings</div>
+
+</div>
+</body>
+</html>
